@@ -185,13 +185,13 @@ Action::RetType Action_GIST::Init(ArgList& actionArgs, ActionInit& init, int deb
     return Action::ERR;
   }
   // Grid spacing
-  double gridspacing = actionArgs.getKeyDouble("gridspacn", 0.50);
+  gridspacing_ = actionArgs.getKeyDouble("gridspacn", 0.50);
   // Grid center
-  Vec3 gridcntr(0.0);
+  gridcntr_ = Vec3(0.0);
   if ( actionArgs.hasKey("gridcntr") ) {
-    gridcntr[0] = actionArgs.getNextDouble(-1);
-    gridcntr[1] = actionArgs.getNextDouble(-1);
-    gridcntr[2] = actionArgs.getNextDouble(-1);
+    gridcntr_[0] = actionArgs.getNextDouble(-1);
+    gridcntr_[1] = actionArgs.getNextDouble(-1);
+    gridcntr_[2] = actionArgs.getNextDouble(-1);
   } else
     mprintf("Warning: No grid center values specified, using default (origin)\n");
 
@@ -241,6 +241,7 @@ Action::RetType Action_GIST::Init(ArgList& actionArgs, ActionInit& init, int deb
     nz = actionArgs.getNextInteger(-1);
   } else
     mprintf("Warning: No grid dimension values specified, using default (40,40,40)\n");
+    griddim_ = Vec3((double)nx, (double)ny, (double)nz);
   // Data set name
   std::string dsname = actionArgs.GetStringKey("name");
   if (dsname.empty())
@@ -276,26 +277,26 @@ Action::RetType Action_GIST::Init(ArgList& actionArgs, ActionInit& init, int deb
   }
  
   // Allocate DataSets. TODO non-orthogonal grids as well
-  Vec3 v_spacing( gridspacing );
-  gO_->Allocate_N_C_D(nx, ny, nz, gridcntr, v_spacing);
+  Vec3 v_spacing( gridspacing_ );
+  gO_->Allocate_N_C_D(nx, ny, nz, gridcntr_, v_spacing);
   MAX_GRID_PT_ = gO_->Size();
-  gH_->Allocate_N_C_D(nx, ny, nz, gridcntr, v_spacing);
-  Esw_->Allocate_N_C_D(nx, ny, nz, gridcntr, v_spacing);
-  Eww_->Allocate_N_C_D(nx, ny, nz, gridcntr, v_spacing);
+  gH_->Allocate_N_C_D(nx, ny, nz, gridcntr_, v_spacing);
+  Esw_->Allocate_N_C_D(nx, ny, nz, gridcntr_, v_spacing);
+  Eww_->Allocate_N_C_D(nx, ny, nz, gridcntr_, v_spacing);
 
-  PME_->Allocate_N_C_D(nx,ny,nz,gridcntr,v_spacing);
-  U_PME_->Allocate_N_C_D(nx,ny,nz,gridcntr,v_spacing);
+  PME_->Allocate_N_C_D(nx,ny,nz,gridcntr_,v_spacing);
+  U_PME_->Allocate_N_C_D(nx,ny,nz,gridcntr_,v_spacing);
 
-  dTStrans_->Allocate_N_C_D(nx, ny, nz, gridcntr, v_spacing);
-  dTSorient_->Allocate_N_C_D(nx, ny, nz, gridcntr, v_spacing);
-  dTSsix_->Allocate_N_C_D(nx, ny, nz, gridcntr, v_spacing);
-  neighbor_norm_->Allocate_N_C_D(nx, ny, nz, gridcntr, v_spacing);
-  dipole_->Allocate_N_C_D(nx, ny, nz, gridcntr, v_spacing);
+  dTStrans_->Allocate_N_C_D(nx, ny, nz, gridcntr_, v_spacing);
+  dTSorient_->Allocate_N_C_D(nx, ny, nz, gridcntr_, v_spacing);
+  dTSsix_->Allocate_N_C_D(nx, ny, nz, gridcntr_, v_spacing);
+  neighbor_norm_->Allocate_N_C_D(nx, ny, nz, gridcntr_, v_spacing);
+  dipole_->Allocate_N_C_D(nx, ny, nz, gridcntr_, v_spacing);
 
-  order_norm_->Allocate_N_C_D(nx, ny, nz, gridcntr, v_spacing);
-  dipolex_->Allocate_N_C_D(nx, ny, nz, gridcntr, v_spacing);
-  dipoley_->Allocate_N_C_D(nx, ny, nz, gridcntr, v_spacing);
-  dipolez_->Allocate_N_C_D(nx, ny, nz, gridcntr, v_spacing);
+  order_norm_->Allocate_N_C_D(nx, ny, nz, gridcntr_, v_spacing);
+  dipolex_->Allocate_N_C_D(nx, ny, nz, gridcntr_, v_spacing);
+  dipoley_->Allocate_N_C_D(nx, ny, nz, gridcntr_, v_spacing);
+  dipolez_->Allocate_N_C_D(nx, ny, nz, gridcntr_, v_spacing);
 
   if (ww_Eij_ != 0) {
     if (ww_Eij_->AllocateTriangle( MAX_GRID_PT_ )) {
@@ -324,9 +325,9 @@ Action::RetType Action_GIST::Init(ArgList& actionArgs, ActionInit& init, int deb
   file_dipolez->AddDataSet( dipolez_ );
 
   // Set up grid params TODO non-orthogonal as well
-  G_max_ = Vec3( (double)nx * gridspacing + 1.5,
-                 (double)ny * gridspacing + 1.5,
-                 (double)nz * gridspacing + 1.5 );
+  G_max_ = Vec3( (double)nx * gridspacing_ + 1.5,
+                 (double)ny * gridspacing_ + 1.5,
+                 (double)nz * gridspacing_ + 1.5 );
   N_waters_.assign( MAX_GRID_PT_, 0 );
   N_hydrogens_.assign( MAX_GRID_PT_, 0 );
   N_solute_atoms_.assign( MAX_GRID_PT_,0);
@@ -388,9 +389,9 @@ Action::RetType Action_GIST::Init(ArgList& actionArgs, ActionInit& init, int deb
   }
 
   //Box gbox;
-  //gbox.SetBetaLengths( 90.0, (double)nx * gridspacing,
-  //                           (double)ny * gridspacing,
-  //                           (double)nz * gridspacing );
+  //gbox.SetBetaLengths( 90.0, (double)nx * gridspacing_,
+  //                           (double)ny * gridspacing_,
+  //                           (double)nz * gridspacing_ );
   //grid_.Setup_O_Box( nx, ny, nz, gO_->GridOrigin(), gbox );
   //grid_.Setup_O_D( nx, ny, nz, gO_->GridOrigin(), v_spacing );
 
@@ -513,7 +514,7 @@ Action::RetType Action_GIST::Setup(ActionSetup& setup) {
                               mol != setup.Top().MolEnd(); ++mol, ++midx)
   {
     if (mol->IsSolvent()) {
-      int o_idx = mol->BeginAtom();
+      int o_idx = mol->MolUnit().Front();
       #ifdef CUDA
       this->headAtomType_ = setup.Top()[o_idx].TypeIndex();
       #endif
@@ -588,7 +589,10 @@ Action::RetType Action_GIST::Setup(ActionSetup& setup) {
       // This is a non-solvent molecule. Save atom indices. May want to exclude
       // if only 1 atom (probably ion).
       if (mol->NumAtoms() > 1 || includeIons_) {
-        for (int u_idx = mol->BeginAtom(); u_idx != mol->EndAtom(); ++u_idx) {
+        for (Unit::const_iterator seg = mol->MolUnit().segBegin();
+                                  seg != mol->MolUnit().segEnd();++seg)
+        {
+        for (int u_idx = seg->Begin(); u_idx != seg->End(); ++u_idx) {
           A_idxs_.push_back( u_idx );
           SW_idxs_.push_back(1); // the identity of the atom is solute
           atom_voxel_.push_back( SOLUTE_ );   // here if the atom is soloute atom, atom_voxel_ is -2
@@ -601,6 +605,7 @@ Action::RetType Action_GIST::Setup(ActionSetup& setup) {
           this->atomTypes_.push_back( setup.Top()[ u_idx ].TypeIndex() );
           this->solvent_[ u_idx ] = false;
           #endif
+        }
         }
       }
     }
@@ -678,7 +683,7 @@ void Action_GIST::Ecalc(double rij2, double q1, double q2, NonbondType const& LJ
   // VDW
   double r2    = 1.0 / rij2;
   double r6    = r2 * r2 * r2;
-  double r12   = r6 * r6; 
+  double r12   = r6 * r6;
   double f12   = LJ.A() * r12;  // A/r^12
   double f6    = LJ.B() * r6;   // B/r^6
          Evdw  = f12 - f6;      // (A/r^12)-(B/r^6)
@@ -1030,13 +1035,13 @@ void Action_GIST::NonbondEnergy(Frame const& frameIn, Topology const& topIn)
     std::vector<Vec3> vImages;
     if (image_.ImageType() == NONORTHO) {
       // Convert to frac coords
-      Vec3 vFrac = recip * A1_XYZ; 
+      Vec3 vFrac = recip * A1_XYZ;
       // Wrap to primary unit cell
       vFrac[0] = vFrac[0] - floor(vFrac[0]);
       vFrac[1] = vFrac[1] - floor(vFrac[1]);
       vFrac[2] = vFrac[2] - floor(vFrac[2]);
       // Calculate all images of this atom
-      vImages.reserve(27); 
+      vImages.reserve(27);
       for (int ix = -1; ix != 2; ix++)
         for (int iy = -1; iy != 2; iy++)
           for (int iz = -1; iz != 2; iz++)
@@ -1582,7 +1587,7 @@ void Action_GIST::Print() {
           }
         } // END outer loop over all waters for this voxel
         //mprintf("DEBUG1: dTSorient_norm %f\n", dTSorient_norm[gr_pt]);
-        dTSorient_norm[gr_pt] = Constants::GASK_KCAL * temperature_ * 
+        dTSorient_norm[gr_pt] = Constants::GASK_KCAL * temperature_ *
                                 ((dTSorient_norm[gr_pt]/nw_total) + Constants::EULER_MASC);
         double dtso_norm_nw = (double)dTSorient_norm[gr_pt] * (double)nw_total;
         dTSorient_dens[gr_pt] = (dtso_norm_nw / (NFRAME_ * Vvox));
@@ -1703,12 +1708,14 @@ void Action_GIST::Print() {
 
           NNd = sqrt(NNd);
           NNs = sqrt(NNs);
+          
+          double pi = 3.141592653589793;
 
           if (NNd < 3 && NNd > 0/*NNd < 9999 && NNd > 0*/) {
-            double dbl = log((NNd*NNd*NNd*NFRAME_*4*Constants::PI*BULK_DENS_)/3);
+            double dbl = log((NNd*NNd*NNd*NFRAME_*4*pi*BULK_DENS_)/3);
             dTStrans_norm[gr_pt] += dbl;
             dTSt += dbl;
-            dbl = log((NNs*NNs*NNs*NNs*NNs*NNs*NFRAME_*Constants::PI*BULK_DENS_)/48);
+            dbl = log((NNs*NNs*NNs*NNs*NNs*NNs*NFRAME_*pi*BULK_DENS_)/48);
             dTSsix_norm[gr_pt] += dbl;
             dTSs += dbl;
             //mprintf("DEBUG1: dbl=%f NNs=%f\n", dbl, NNs);
@@ -1990,12 +1997,15 @@ void Action_GIST::Print() {
                       "voxel xcoord ycoord zcoord population g_O g_H"
                       " dTStrans-dens(kcal/mol/A^3) dTStrans-norm(kcal/mol)"
                       " dTSorient-dens(kcal/mol/A^3) dTSorient-norm(kcal/mol)"
-                      " dTSsix-dens(kcal/mol/A^3) dTSsix-norm (kcal/mol)"
+                      " dTSsix-dens(kcal/mol/A^3) dTSsix-norm(kcal/mol)"
                       " Esw-dens(kcal/mol/A^3) Esw-norm(kcal/mol)"
                       " Eww-dens(kcal/mol/A^3) Eww-norm-unref(kcal/mol)"
                       " PME-dens(kcal/mol/A^3) PME-norm(kcal/mol)"
                       " Dipole_x-dens(D/A^3) Dipole_y-dens(D/A^3) Dipole_z-dens(D/A^3)"
-                      " Dipole-dens(D/A^3) neighbor-dens(1/A^3) neighbor-norm order-norm\n");
+                      " Dipole-dens(D/A^3) neighbor-dens(1/A^3) neighbor-norm order-norm\n"
+                      "v2", gridspacing_,
+                      gridcntr_[0], gridcntr_[1], gridcntr_[2],
+                      (int)griddim_[0], (int)griddim_[1], (int)griddim_[2]);
     ProgressBar O_progress( MAX_GRID_PT_ );
     for (unsigned int gr_pt = 0; gr_pt < MAX_GRID_PT_; gr_pt++) {
       O_progress.Update( gr_pt );
@@ -2108,8 +2118,8 @@ void Action_GIST::NonbondCuda(ActionFrame frm) {
   std::vector<int> result_n = std::vector<int>(this->numberAtoms_);
   // Call the GPU Wrapper, which subsequently calls the kernel, after setup operations.
   // Must create arrays from the vectors, does that by getting the address of the first element of the vector.
-  std::vector<std::vector<float> > e_result = doActionCudaEnergy(frm.Frm().xAddress(), this->NBindex_c_, this->numberAtomTypes_, this->paramsLJ_c_, this->molecule_c_, boxinfo, recip, ucell, this->numberAtoms_, this->min_c_, 
-                                                    this->max_c_, this->headAtomType_,this->NeighborCut2_, &(result_o[0]), &(result_n[0]), this->result_w_c_, 
+  std::vector<std::vector<float> > e_result = doActionCudaEnergy(frm.Frm().xAddress(), this->NBindex_c_, this->numberAtomTypes_, this->paramsLJ_c_, this->molecule_c_, boxinfo, recip, ucell, this->numberAtoms_, this->min_c_,
+                                                    this->max_c_, this->headAtomType_,this->NeighborCut2_, &(result_o[0]), &(result_n[0]), this->result_w_c_,
                                                     this->result_s_c_, this->result_O_c_, this->result_N_c_, this->doOrder_);
   eww_result = e_result.at(0);
   esw_result = e_result.at(1);
